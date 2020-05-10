@@ -37,7 +37,7 @@ public class PartitionOption extends Option implements ItemListener {
 
 					if (curPart.SubType >= 0x10 && curPart.SubType <= 0x1F) {
 						/* This is an OTA partition, check its StartBytes for a validity smell test */
-						if (curPart.FirstBytes != -1) {
+						if (curPart.Data[0] != -1) {
 							cb.addItem(curPart.Name);
 						}
 					} else {

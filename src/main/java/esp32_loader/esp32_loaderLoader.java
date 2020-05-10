@@ -19,18 +19,31 @@ import java.io.IOException;
 import java.util.*;
 
 import esp32_loader.flash.ESP32Flash;
+import esp32_loader.flash.ESP32Partition;
+import esp32_loader.flash.ESP32AppImage;
+import ghidra.app.util.MemoryBlockUtils;
 import ghidra.app.util.Option;
 import ghidra.app.util.bin.BinaryReader;
+import ghidra.app.util.bin.ByteArrayProvider;
 import ghidra.app.util.bin.ByteProvider;
 import ghidra.app.util.importer.MessageLog;
 import ghidra.app.util.opinion.AbstractLibrarySupportLoader;
 import ghidra.app.util.opinion.LoadSpec;
 import ghidra.framework.model.DomainObject;
+import ghidra.framework.store.LockException;
+import ghidra.program.database.mem.FileBytes;
+import ghidra.program.flatapi.FlatProgramAPI;
+import ghidra.program.model.address.Address;
+import ghidra.program.model.address.AddressOverflowException;
 import ghidra.program.model.lang.CompilerSpecID;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
 import ghidra.program.model.lang.LanguageID;
 import ghidra.program.model.listing.Program;
+import ghidra.program.model.mem.MemoryConflictException;
+import ghidra.program.model.util.AddressSetPropertyMap;
+import ghidra.util.Msg;
 import ghidra.util.exception.CancelledException;
+import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.task.TaskMonitor;
 
 /**
@@ -79,8 +92,112 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 	@Override
 	protected void load(ByteProvider provider, LoadSpec loadSpec, List<Option> options, Program program,
 			TaskMonitor monitor, MessageLog log) throws CancelledException, IOException {
+		FlatProgramAPI api = new FlatProgramAPI(program, monitor);
+		BinaryReader reader = new BinaryReader(provider, true);
+
+		/* read the partition option */
+		var partOpt = (String) (options.get(0).getValue());
+
+		ESP32Partition part = parsedFlash.GetPartitionByName(partOpt);
+
+		try {
+			AddressSetPropertyMap codeProp = program.getAddressSetPropertyMap("CodeMap");
+			if (codeProp == null) {
+				codeProp = program.createAddressSetPropertyMap("CodeMap");
+			}
+
+			ESP32AppImage image = part.ParseAppImage();
+
+			for (var x = 0; x < image.SegmentCount; x++) {
+				var curSeg = image.Segments.get(x);
+
+				FileBytes fileBytes = MemoryBlockUtils.createFileBytes(program, new ByteArrayProvider(curSeg.Data),
+						0x00, curSeg.Length, monitor);
+
+				var memBlock = program.getMemory().createInitializedBlock(
+						curSeg.SegmentName + "_" + Integer.toHexString(curSeg.LoadAddress),
+						api.toAddr(curSeg.LoadAddress), fileBytes, 0x00, curSeg.Length, false);
+				memBlock.setPermissions(curSeg.IsRead, curSeg.IsWrite, curSeg.IsExecute);
+
+				/* Mark Instruction blocks as code */
+				if (curSeg.SegmentName.startsWith("I")) {
+					codeProp.add(api.toAddr(curSeg.LoadAddress), api.toAddr(curSeg.LoadAddress + curSeg.Length));
+				}
+
+			}
+
+			/* set the entry point */
+			program.getSymbolTable().addExternalEntryPoint(api.toAddr(image.EntryAddress));
+			
+			/* Create Peripheral Device Memory Blocks */
+			registerPeripheralBlock(program, api, 0x3FF00000, 0x3FF00FFF, "DPort Register");
+			registerPeripheralBlock(program, api, 0x3FF01000, 0x3FF01FFF, "AES Accelerator");
+			registerPeripheralBlock(program, api, 0x3FF02000, 0x3FF02FFF, "RSA Accelerator");
+			registerPeripheralBlock(program, api, 0x3FF03000, 0x3FF03FFF, "SHA Accelerator");
+			registerPeripheralBlock(program, api, 0x3FF04000, 0x3FF04FFF, "Secure Boot");
+			registerPeripheralBlock(program, api, 0x3FF10000, 0x3FF13FFF, "Cache MMU Table");
+			registerPeripheralBlock(program, api, 0x3FF1F000, 0x3FF1FFFF, "PID Controller");
+			registerPeripheralBlock(program, api, 0x3FF40000, 0x3FF40FFF, "UART0");
+			registerPeripheralBlock(program, api, 0x3FF42000, 0x3FF42FFF, "SPI1");
+			registerPeripheralBlock(program, api, 0x3FF43000, 0x3FF43FFF, "SPI0");
+			registerPeripheralBlock(program, api, 0x3FF44000, 0x3FF44FFF, "GPIO");
+			registerPeripheralBlock(program, api, 0x3FF48000, 0x3FF48FFF, "RTC");
+			registerPeripheralBlock(program, api, 0x3FF49000, 0x3FF49FFF, "IO MUX");
+			registerPeripheralBlock(program, api, 0x3FF4B000, 0x3FF4BFFF, "SDIO Slave1");
+			registerPeripheralBlock(program, api, 0x3FF4C000, 0x3FF4CFFF, "UDMA1");
+			registerPeripheralBlock(program, api, 0x3FF4F000, 0x3FF4FFFF, "I2S0");
+			registerPeripheralBlock(program, api, 0x3FF50000, 0x3FF50FFF, "UART1");
+			registerPeripheralBlock(program, api, 0x3FF53000, 0x3FF53FFF, "I2C0");
+			registerPeripheralBlock(program, api, 0x3FF54000, 0x3FF54FFF, "UDMA0");
+			registerPeripheralBlock(program, api, 0x3FF55000, 0x3FF55FFF, "SDIO Slave2");
+			registerPeripheralBlock(program, api, 0x3FF56000, 0x3FF56FFF, "RMT");
+			registerPeripheralBlock(program, api, 0x3FF57000, 0x3FF57FFF, "PCNT");
+			registerPeripheralBlock(program, api, 0x3FF58000, 0x3FF58FFF, "SDIO Slave3");
+			registerPeripheralBlock(program, api, 0x3FF59000, 0x3FF59FFF, "LED PWM");
+			registerPeripheralBlock(program, api, 0x3FF5A000, 0x3FF5AFFF, "Efuse Controller");
+			registerPeripheralBlock(program, api, 0x3FF5B000, 0x3FF5BFFF, "Flash Encryption");
+			registerPeripheralBlock(program, api, 0x3FF5E000, 0x3FF5EFFF, "PWM0");
+			registerPeripheralBlock(program, api, 0x3FF5F000, 0x3FF5FFFF, "TIMG0");
+			registerPeripheralBlock(program, api, 0x3FF60000, 0x3FF60FFF, "TIMG1");
+			registerPeripheralBlock(program, api, 0x3FF64000, 0x3FF64FFF, "SPI2");
+			registerPeripheralBlock(program, api, 0x3FF65000, 0x3FF65FFF, "SPI3");
+			registerPeripheralBlock(program, api, 0x3FF66000, 0x3FF66FFF, "SYSCON");
+			registerPeripheralBlock(program, api, 0x3FF67000, 0x3FF67FFF, "I2C1");
+			registerPeripheralBlock(program, api, 0x3FF68000, 0x3FF68FFF, "SDMMC");
+			registerPeripheralBlock(program, api, 0x3FF69000, 0x3FF6AFFF, "EMAC");
+			registerPeripheralBlock(program, api, 0x3FF6C000, 0x3FF6CFFF, "PWM1");
+			registerPeripheralBlock(program, api, 0x3FF6D000, 0x3FF6DFFF, "I2S1");
+			registerPeripheralBlock(program, api, 0x3FF6E000, 0x3FF6EFFF, "UART2");
+			registerPeripheralBlock(program, api, 0x3FF6F000, 0x3FF6FFFF, "PWM2");
+			registerPeripheralBlock(program, api, 0x3FF70000, 0x3FF70FFF, "PWM3");
+			registerPeripheralBlock(program, api, 0x3FF75000, 0x3FF75FFF, "RNG");
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 		// TODO: Load the bytes from 'provider' into the 'program'.
+	}
+
+	private void registerPeripheralBlock(Program program, FlatProgramAPI api, int startAddr, int endAddr, String name)
+			throws LockException, DuplicateNameException, MemoryConflictException, AddressOverflowException {
+		// TODO Auto-generated method stub
+		program.getMemory().createUninitializedBlock(name, api.toAddr(startAddr), endAddr - startAddr, false);
+
+		markDataForPeripheral(program, api, startAddr);
+
+		/*
+		 * var memBlock = program.getMemory().createInitializedBlock(curSeg.SegmentName
+		 * + "_" + Integer.toHexString(curSeg.LoadAddress),
+		 * api.toAddr(curSeg.LoadAddress), fileBytes, 0x00, curSeg.Length, false);
+		 * memBlock.setPermissions(curSeg.IsRead, curSeg.IsWrite, curSeg.IsExecute);
+		 */
+	}
+
+	private void markDataForPeripheral(Program program, FlatProgramAPI api, int startAddr) {
+		// TODO Auto-generated method stub
+
 	}
 
 	@Override

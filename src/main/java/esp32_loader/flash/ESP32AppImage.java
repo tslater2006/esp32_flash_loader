@@ -15,20 +15,32 @@ public class ESP32AppImage {
 	public ESP32AppImage (BinaryReader reader) throws IOException {
 		var magic = reader.readNextByte();
 		this.SegmentCount = reader.readNextByte();
-		reader.readNextByte(); // SPI Byte
-		reader.readNextByte(); // SPI Size
-		this.EntryAddress = reader.readInt(0x04);
+		var spiByte = reader.readNextByte(); // SPI Byte
+		var spiSize = reader.readNextByte(); // SPI Size
+		this.EntryAddress = reader.readNextInt();
 
-		reader.readNextByte(); // WP Pin
-        reader.readNextByteArray(3); // SPIPinDrv
-        reader.readNextShort(); //Chip ID
-        reader.readNextByte(); //MinChipRev
-        reader.readNextByteArray(8); // Reserved
+		var wpPin = reader.readNextByte(); // WP Pin
+        var spiPinDrv = reader.readNextByteArray(3); // SPIPinDrv
+        var chipID = reader.readNextShort(); //Chip ID
+        var minChipRev = reader.readNextByte(); //MinChipRev
+        var reserved = reader.readNextByteArray(8); // Reserved
         this.HashAppended = (reader.readNextByte() == 0x01);
 		
 		
 		for(var x =0 ;x < this.SegmentCount; x++) {
-			Segments.add(new ESP32AppSegment(reader));
+			var seg = new ESP32AppSegment(this, reader);
+			Segments.add(seg);
 		}
+		
+		/* get to 16 byte boundary */
+        while ((reader.getPointerIndex() + 1) % 0x10 != 0)
+        {
+            reader.readNextByte();
+        }
+        
+        reader.readNextByte(); // checksum byte
+        if (HashAppended) {
+        	reader.readNextByteArray(0x20); // hash
+        }
 	}
 }
