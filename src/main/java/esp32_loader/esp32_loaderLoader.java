@@ -38,10 +38,12 @@ import ghidra.util.task.TaskMonitor;
  */
 public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 	ESP32Flash parsedFlash = null;
+
 	@Override
 	public String getName() {
 
-		// TODO: Name the loader.  This name must match the name of the loader in the .opinion 
+		// TODO: Name the loader. This name must match the name of the loader in the
+		// .opinion
 		// files.
 
 		return "ESP32 Flash Image";
@@ -51,43 +53,43 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 	public Collection<LoadSpec> findSupportedLoadSpecs(ByteProvider provider) throws IOException {
 		List<LoadSpec> loadSpecs = new ArrayList<>();
 
-		// TODO: Examine the bytes in 'provider' to determine if this loader can load it.  If it 
+		// TODO: Examine the bytes in 'provider' to determine if this loader can load
+		// it. If it
 		// can load it, return the appropriate load specifications.
 		BinaryReader reader = new BinaryReader(provider, true);
-		
+
 		/* 2nd stage bootloader is at 0x1000, should start with an 0xE9 byte */
 		if (reader.length() > 0x1000) {
 			var magic = reader.readByte(0x1000);
-			
+
 			if ((magic & 0xFF) == 0xE9) {
 				try {
 					/* parse the flash... */
 					parsedFlash = new ESP32Flash(reader);
-					if (parsedFlash.SecondaryBootloader != null) {
-						loadSpecs.add(new LoadSpec(this, 0, new LanguageCompilerSpecPair(new LanguageID("Xtensa:LE:32:default"), new CompilerSpecID("default")), true));
-					}
-				} catch (Exception ex) {}				
+					loadSpecs.add(new LoadSpec(this, 0, new LanguageCompilerSpecPair(
+							new LanguageID("Xtensa:LE:32:default"), new CompilerSpecID("default")), true));
+				} catch (Exception ex) {
+				}
 			}
 		}
-        
+
 		return loadSpecs;
 	}
 
 	@Override
-	protected void load(ByteProvider provider, LoadSpec loadSpec, List<Option> options,
-			Program program, TaskMonitor monitor, MessageLog log)
-			throws CancelledException, IOException {
+	protected void load(ByteProvider provider, LoadSpec loadSpec, List<Option> options, Program program,
+			TaskMonitor monitor, MessageLog log) throws CancelledException, IOException {
 
 		// TODO: Load the bytes from 'provider' into the 'program'.
 	}
 
 	@Override
-	public List<Option> getDefaultOptions(ByteProvider provider, LoadSpec loadSpec,
-			DomainObject domainObject, boolean isLoadIntoProgram) {
+	public List<Option> getDefaultOptions(ByteProvider provider, LoadSpec loadSpec, DomainObject domainObject,
+			boolean isLoadIntoProgram) {
 		List<Option> list = new ArrayList<Option>();
-		
+
 		if (parsedFlash != null) {
-		// TODO: If this loader has custom options, add them to 'list'
+			// TODO: If this loader has custom options, add them to 'list'
 			list.add(new PartitionOption(parsedFlash));
 		}
 		return list;
@@ -96,9 +98,10 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 	@Override
 	public String validateOptions(ByteProvider provider, LoadSpec loadSpec, List<Option> options, Program program) {
 
-		// TODO: If this loader has custom options, validate them here.  Not all options require
+		// TODO: If this loader has custom options, validate them here. Not all options
+		// require
 		// validation.
 		return null;
-		//return super.validateOptions(provider, loadSpec, options, program);
+		// return super.validateOptions(provider, loadSpec, options, program);
 	}
 }

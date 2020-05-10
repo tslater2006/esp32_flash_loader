@@ -13,21 +13,23 @@ public class ESP32Flash {
 		
 		/* first 0x1000 bytes are empty */
 		byte[] skipped = reader.readNextByteArray(0x1000);
+		var idx1 = reader.getPointerIndex();
+		byte[] bootLoader = reader.readNextByteArray(0x7000);
 		
-		/* next up is the 2nd stage bootloader, up to 0x7000 in size */
-		SecondaryBootloader = new ESP32AppImage(reader);
-		
-		var t = new ESP32Partition();
-		t.Name = "test 1";
-		t.Type = ESP32_PARTITION_TYPE.APP_IMAGE;
-		Partitions.add(t);
-		
-		t = new ESP32Partition();
-		t.Name = "test 2";
-		t.Type = ESP32_PARTITION_TYPE.APP_IMAGE;
-		Partitions.add(t);
-		
+		var idx2 = reader.getPointerIndex();
+		/* should be at the partition table now */
+		while (reader.peekNextShort() == 0x50AA){
+			var part = new ESP32Partition(reader);
+			Partitions.add(part);
+		}
 	}
 	
-	
+	public ESP32Partition GetPartitionByName(String name) {
+		for(var x =0; x < Partitions.size(); x++) {
+			if (Partitions.get(x).Name.equals(name)) {
+				return Partitions.get(x);
+			}
+		}
+		return null;
+	}
 }
