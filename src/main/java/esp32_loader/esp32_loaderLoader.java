@@ -20,6 +20,7 @@ import java.util.*;
 
 import esp32_loader.flash.ESP32Flash;
 import esp32_loader.flash.ESP32Partition;
+import generic.jar.ResourceFile;
 import esp32_loader.flash.ESP32AppImage;
 import ghidra.app.util.MemoryBlockUtils;
 import ghidra.app.util.Option;
@@ -29,6 +30,7 @@ import ghidra.app.util.bin.ByteProvider;
 import ghidra.app.util.importer.MessageLog;
 import ghidra.app.util.opinion.AbstractLibrarySupportLoader;
 import ghidra.app.util.opinion.LoadSpec;
+import ghidra.framework.Application;
 import ghidra.framework.model.DomainObject;
 import ghidra.framework.store.LockException;
 import ghidra.program.database.mem.FileBytes;
@@ -45,21 +47,22 @@ import ghidra.util.Msg;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.task.TaskMonitor;
-
+import org.w3c.dom.*;
+import javax.xml.parsers.*;
+import java.io.*;
 /**
  * TODO: Provide class-level documentation that describes what this loader does.
  */
 public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 	ESP32Flash parsedFlash = null;
-
+	ESP32AppImage parsedAppImage = null;
 	@Override
 	public String getName() {
 
 		// TODO: Name the loader. This name must match the name of the loader in the
 		// .opinion
 		// files.
-
-		return "ESP32 Flash Image";
+		return "ESP32 Flash Image"; 
 	}
 
 	@Override
@@ -83,6 +86,16 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 							new LanguageID("Xtensa:LE:32:default"), new CompilerSpecID("default")), true));
 				} catch (Exception ex) {
 				}
+			} else {
+				/* maybe they fed us an app image directly */
+				if ((reader.readByte(0x00) & 0xFF) == 0xE9) {
+					/* App image magic is first byte */
+					try {
+						parsedAppImage = new ESP32AppImage(reader);
+						loadSpecs.add(new LoadSpec(this, 0, new LanguageCompilerSpecPair(
+								new LanguageID("Xtensa:LE:32:default"), new CompilerSpecID("default")), true));
+					} catch (Exception ex) {}
+				}
 			}
 		}
 
@@ -95,21 +108,28 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 		FlatProgramAPI api = new FlatProgramAPI(program, monitor);
 		BinaryReader reader = new BinaryReader(provider, true);
 
-		/* read the partition option */
-		var partOpt = (String) (options.get(0).getValue());
+		ESP32AppImage imageToLoad = null;
+		if (parsedAppImage != null) {
+			imageToLoad = parsedAppImage;
+		} else {
+			/* they probably gave us a firmware file, lets load that and get the partition they selected */
+			var partOpt = (String) (options.get(0).getValue());
 
-		ESP32Partition part = parsedFlash.GetPartitionByName(partOpt);
-
+			ESP32Partition part = parsedFlash.GetPartitionByName(partOpt);
+			try {
+			imageToLoad = part.ParseAppImage();
+			} catch(Exception ex) {}
+		}
+		
+		
 		try {
 			AddressSetPropertyMap codeProp = program.getAddressSetPropertyMap("CodeMap");
 			if (codeProp == null) {
 				codeProp = program.createAddressSetPropertyMap("CodeMap");
-			}
+			} 
 
-			ESP32AppImage image = part.ParseAppImage();
-
-			for (var x = 0; x < image.SegmentCount; x++) {
-				var curSeg = image.Segments.get(x);
+			for (var x = 0; x < imageToLoad.SegmentCount; x++) {
+				var curSeg = imageToLoad.Segments.get(x);
 
 				FileBytes fileBytes = MemoryBlockUtils.createFileBytes(program, new ByteArrayProvider(curSeg.Data),
 						0x00, curSeg.Length, monitor);
@@ -127,7 +147,7 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			}
 
 			/* set the entry point */
-			program.getSymbolTable().addExternalEntryPoint(api.toAddr(image.EntryAddress));
+			program.getSymbolTable().addExternalEntryPoint(api.toAddr(imageToLoad.EntryAddress));
 			
 			/* Create Peripheral Device Memory Blocks */
 			registerPeripheralBlock(program, api, 0x3FF00000, 0x3FF00FFF, "DPort Register");
@@ -171,6 +191,10 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			registerPeripheralBlock(program, api, 0x3FF6F000, 0x3FF6FFFF, "PWM2");
 			registerPeripheralBlock(program, api, 0x3FF70000, 0x3FF70FFF, "PWM3");
 			registerPeripheralBlock(program, api, 0x3FF75000, 0x3FF75FFF, "RNG");
+			
+			
+			processSVD(program, api);
+			
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -180,6 +204,48 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 		// TODO: Load the bytes from 'provider' into the 'program'.
 	}
 
+	private void processSVD(Program program, FlatProgramAPI api) throws Exception {
+		// TODO Auto-generated method stub
+		List<ResourceFile> svdFileList =  Application.findFilesByExtensionInMyModule("svd");
+		if (svdFileList.size() > 0) {
+			/* grab the first svd file ... */
+			String svdFile = svdFileList.get(0).getAbsolutePath();
+			DocumentBuilderFactory factory =
+			DocumentBuilderFactory.newInstance();
+			DocumentBuilder builder = factory.newDocumentBuilder();
+			
+			Document doc = builder.parse(svdFile);
+			
+			Element root = doc.getDocumentElement();
+			
+			NodeList peripherals = root.getElementsByTagName("peripheral");
+			for(var x=0; x < peripherals.getLength(); x++) {
+				processPeripheral((Element)peripherals.item(x));
+			}
+		}
+	}
+
+	private void processPeripheral (Element peripheral) {
+		String baseAddrString = ((Element)(peripheral.getElementsByTagName("baseAddress").item(0))).getTextContent();
+		int baseAddr = Integer.decode(baseAddrString);
+		
+		NodeList registers = peripheral.getElementsByTagName("register");
+		
+		for (var x = 0; x < registers.getLength(); x++) {
+			Element register = (Element)registers.item(x);
+			String registerName = ((Element)(register.getElementsByTagName("name").item(0))).getTextContent();
+			String offsetString = ((Element)(register.getElementsByTagName("addressOffset").item(0))).getTextContent();
+			int offsetValue = Integer.decode(offsetString);
+			
+			addRegister(registerName, baseAddr + offsetValue);
+			
+		}
+	}
+	
+	private void addRegister(String name, int address) {
+		
+	}
+	
 	private void registerPeripheralBlock(Program program, FlatProgramAPI api, int startAddr, int endAddr, String name)
 			throws LockException, DuplicateNameException, MemoryConflictException, AddressOverflowException {
 		// TODO Auto-generated method stub
