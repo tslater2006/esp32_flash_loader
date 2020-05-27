@@ -37,15 +37,22 @@ import ghidra.program.database.mem.FileBytes;
 import ghidra.program.flatapi.FlatProgramAPI;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOverflowException;
+import ghidra.program.model.data.DataTypeConflictException;
+import ghidra.program.model.data.DataTypeConflictHandler;
+import ghidra.program.model.data.StructureDataType;
+import ghidra.program.model.data.UnsignedLongDataType;
 import ghidra.program.model.lang.CompilerSpecID;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
 import ghidra.program.model.lang.LanguageID;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryConflictException;
+import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.util.AddressSetPropertyMap;
+import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.util.Msg;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;
+import ghidra.util.exception.InvalidInputException;
 import ghidra.util.task.TaskMonitor;
 import org.w3c.dom.*;
 import javax.xml.parsers.*;
@@ -150,49 +157,7 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			program.getSymbolTable().addExternalEntryPoint(api.toAddr(imageToLoad.EntryAddress));
 			
 			/* Create Peripheral Device Memory Blocks */
-			registerPeripheralBlock(program, api, 0x3FF00000, 0x3FF00FFF, "DPort Register");
-			registerPeripheralBlock(program, api, 0x3FF01000, 0x3FF01FFF, "AES Accelerator");
-			registerPeripheralBlock(program, api, 0x3FF02000, 0x3FF02FFF, "RSA Accelerator");
-			registerPeripheralBlock(program, api, 0x3FF03000, 0x3FF03FFF, "SHA Accelerator");
-			registerPeripheralBlock(program, api, 0x3FF04000, 0x3FF04FFF, "Secure Boot");
-			registerPeripheralBlock(program, api, 0x3FF10000, 0x3FF13FFF, "Cache MMU Table");
-			registerPeripheralBlock(program, api, 0x3FF1F000, 0x3FF1FFFF, "PID Controller");
-			registerPeripheralBlock(program, api, 0x3FF40000, 0x3FF40FFF, "UART0");
-			registerPeripheralBlock(program, api, 0x3FF42000, 0x3FF42FFF, "SPI1");
-			registerPeripheralBlock(program, api, 0x3FF43000, 0x3FF43FFF, "SPI0");
-			registerPeripheralBlock(program, api, 0x3FF44000, 0x3FF44FFF, "GPIO");
-			registerPeripheralBlock(program, api, 0x3FF48000, 0x3FF48FFF, "RTC");
-			registerPeripheralBlock(program, api, 0x3FF49000, 0x3FF49FFF, "IO MUX");
-			registerPeripheralBlock(program, api, 0x3FF4B000, 0x3FF4BFFF, "SDIO Slave1");
-			registerPeripheralBlock(program, api, 0x3FF4C000, 0x3FF4CFFF, "UDMA1");
-			registerPeripheralBlock(program, api, 0x3FF4F000, 0x3FF4FFFF, "I2S0");
-			registerPeripheralBlock(program, api, 0x3FF50000, 0x3FF50FFF, "UART1");
-			registerPeripheralBlock(program, api, 0x3FF53000, 0x3FF53FFF, "I2C0");
-			registerPeripheralBlock(program, api, 0x3FF54000, 0x3FF54FFF, "UDMA0");
-			registerPeripheralBlock(program, api, 0x3FF55000, 0x3FF55FFF, "SDIO Slave2");
-			registerPeripheralBlock(program, api, 0x3FF56000, 0x3FF56FFF, "RMT");
-			registerPeripheralBlock(program, api, 0x3FF57000, 0x3FF57FFF, "PCNT");
-			registerPeripheralBlock(program, api, 0x3FF58000, 0x3FF58FFF, "SDIO Slave3");
-			registerPeripheralBlock(program, api, 0x3FF59000, 0x3FF59FFF, "LED PWM");
-			registerPeripheralBlock(program, api, 0x3FF5A000, 0x3FF5AFFF, "Efuse Controller");
-			registerPeripheralBlock(program, api, 0x3FF5B000, 0x3FF5BFFF, "Flash Encryption");
-			registerPeripheralBlock(program, api, 0x3FF5E000, 0x3FF5EFFF, "PWM0");
-			registerPeripheralBlock(program, api, 0x3FF5F000, 0x3FF5FFFF, "TIMG0");
-			registerPeripheralBlock(program, api, 0x3FF60000, 0x3FF60FFF, "TIMG1");
-			registerPeripheralBlock(program, api, 0x3FF64000, 0x3FF64FFF, "SPI2");
-			registerPeripheralBlock(program, api, 0x3FF65000, 0x3FF65FFF, "SPI3");
-			registerPeripheralBlock(program, api, 0x3FF66000, 0x3FF66FFF, "SYSCON");
-			registerPeripheralBlock(program, api, 0x3FF67000, 0x3FF67FFF, "I2C1");
-			registerPeripheralBlock(program, api, 0x3FF68000, 0x3FF68FFF, "SDMMC");
-			registerPeripheralBlock(program, api, 0x3FF69000, 0x3FF6AFFF, "EMAC");
-			registerPeripheralBlock(program, api, 0x3FF6C000, 0x3FF6CFFF, "PWM1");
-			registerPeripheralBlock(program, api, 0x3FF6D000, 0x3FF6DFFF, "I2S1");
-			registerPeripheralBlock(program, api, 0x3FF6E000, 0x3FF6EFFF, "UART2");
-			registerPeripheralBlock(program, api, 0x3FF6F000, 0x3FF6FFFF, "PWM2");
-			registerPeripheralBlock(program, api, 0x3FF70000, 0x3FF70FFF, "PWM3");
-			registerPeripheralBlock(program, api, 0x3FF75000, 0x3FF75FFF, "RNG");
-			
-			
+					
 			processSVD(program, api);
 			
 
@@ -220,14 +185,22 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			
 			NodeList peripherals = root.getElementsByTagName("peripheral");
 			for(var x=0; x < peripherals.getLength(); x++) {
-				processPeripheral((Element)peripherals.item(x));
+				processPeripheral(program, api, (Element)peripherals.item(x));
 			}
 		}
 	}
 
-	private void processPeripheral (Element peripheral) {
+	private void processPeripheral (Program program, FlatProgramAPI api, Element peripheral) throws DuplicateNameException, InvalidInputException, CodeUnitInsertionException, DataTypeConflictException, LockException, MemoryConflictException, AddressOverflowException {
 		String baseAddrString = ((Element)(peripheral.getElementsByTagName("baseAddress").item(0))).getTextContent();
 		int baseAddr = Integer.decode(baseAddrString);
+		
+		String peripheralName = ((Element)(peripheral.getElementsByTagName("name").item(0))).getTextContent();
+		Element addressBlock = (Element) peripheral.getElementsByTagName("addressBlock").item(0);
+		int size = Integer.decode(addressBlock.getElementsByTagName("size").item(0).getTextContent());
+		
+		registerPeripheralBlock(program, api, baseAddr, baseAddr + size - 1, peripheralName);
+		
+		StructureDataType struct = new StructureDataType(peripheralName, size);
 		
 		NodeList registers = peripheral.getElementsByTagName("register");
 		
@@ -237,21 +210,31 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			String offsetString = ((Element)(register.getElementsByTagName("addressOffset").item(0))).getTextContent();
 			int offsetValue = Integer.decode(offsetString);
 			
-			addRegister(registerName, baseAddr + offsetValue);
+			struct.replaceAtOffset(offsetValue, new UnsignedLongDataType() , 4, registerName, "");
 			
 		}
-	}
-	
-	private void addRegister(String name, int address) {
 		
+		var dtm = program.getDataTypeManager();
+		var space = program.getAddressFactory().getDefaultAddressSpace();
+		var listing = program.getListing();
+		var symtbl = program.getSymbolTable();
+		var namespace = symtbl.getNamespace("Peripherals",null);
+		if (namespace == null) {
+			namespace = program.getSymbolTable().createNameSpace(null, "Peripherals", SourceType.ANALYSIS);
+		}
+		
+		var addr = space.getAddress(baseAddr);
+		dtm.addDataType(struct, DataTypeConflictHandler.REPLACE_HANDLER);
+		listing.createData( addr, struct);
+		symtbl.createLabel(addr, peripheralName, namespace, SourceType.USER_DEFINED );
 	}
 	
 	private void registerPeripheralBlock(Program program, FlatProgramAPI api, int startAddr, int endAddr, String name)
 			throws LockException, DuplicateNameException, MemoryConflictException, AddressOverflowException {
 		// TODO Auto-generated method stub
-		program.getMemory().createUninitializedBlock(name, api.toAddr(startAddr), endAddr - startAddr, false);
-
-		markDataForPeripheral(program, api, startAddr);
+		var block = program.getMemory().createUninitializedBlock(name, api.toAddr(startAddr), endAddr - startAddr + 1, false);
+		block.setRead(true);
+		block.setWrite(true);
 
 		/*
 		 * var memBlock = program.getMemory().createInitializedBlock(curSeg.SegmentName
@@ -261,10 +244,6 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 		 */
 	}
 
-	private void markDataForPeripheral(Program program, FlatProgramAPI api, int startAddr) {
-		// TODO Auto-generated method stub
-
-	}
 
 	@Override
 	public List<Option> getDefaultOptions(ByteProvider provider, LoadSpec loadSpec, DomainObject domainObject,
