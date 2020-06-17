@@ -125,7 +125,9 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			ESP32Partition part = parsedFlash.GetPartitionByName(partOpt);
 			try {
 			imageToLoad = part.ParseAppImage();
-			} catch(Exception ex) {}
+			} catch(Exception ex) {
+				log.error("Parse error",ex.toString());
+			}
 		}
 		
 		
@@ -166,6 +168,7 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			log.error("Parse error",e.toString());
 		}
 
 		// TODO: Load the bytes from 'provider' into the 'program'.
@@ -180,11 +183,11 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			boolean isFound = svdFile.indexOf("esp32s2") !=-1? true: false;
 			if (isESP32S2) {
 				if (!isFound) {
-					svdFileList.get(1).getAbsolutePath();
+					svdFile = svdFileList.get(1).getAbsolutePath();
 				} 
 			} else  {
 				if (isFound) {
-					svdFileList.get(1).getAbsolutePath();
+					svdFile = svdFileList.get(1).getAbsolutePath();
 				} 
 			}
 			DocumentBuilderFactory factory =
