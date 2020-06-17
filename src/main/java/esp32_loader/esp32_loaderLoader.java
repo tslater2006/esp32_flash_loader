@@ -158,7 +158,7 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			
 			/* Create Peripheral Device Memory Blocks */
 					
-			processSVD(program, api);
+			processSVD(program, api,imageToLoad.IsEsp32S2);
 			
 
 		} catch (Exception e) {
@@ -169,12 +169,22 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 		// TODO: Load the bytes from 'provider' into the 'program'.
 	}
 
-	private void processSVD(Program program, FlatProgramAPI api) throws Exception {
+	private void processSVD(Program program, FlatProgramAPI api,boolean isESP32S2) throws Exception {
 		// TODO Auto-generated method stub
 		List<ResourceFile> svdFileList =  Application.findFilesByExtensionInMyModule("svd");
 		if (svdFileList.size() > 0) {
 			/* grab the first svd file ... */
 			String svdFile = svdFileList.get(0).getAbsolutePath();
+			boolean isFound = svdFile.indexOf("esp32s2") !=-1? true: false;
+			if (isESP32S2) {
+				if (!isFound) {
+					svdFileList.get(1).getAbsolutePath();
+				} 
+			} else  {
+				if (isFound) {
+					svdFileList.get(1).getAbsolutePath();
+				} 
+			}
 			DocumentBuilderFactory factory =
 			DocumentBuilderFactory.newInstance();
 			DocumentBuilder builder = factory.newDocumentBuilder();
