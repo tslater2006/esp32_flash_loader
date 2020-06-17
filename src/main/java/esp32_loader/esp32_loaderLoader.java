@@ -157,7 +157,9 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			program.getSymbolTable().addExternalEntryPoint(api.toAddr(imageToLoad.EntryAddress));
 			
 			/* Create Peripheral Device Memory Blocks */
-					
+			if (imageToLoad.IsEsp32S2) {
+				log.appendMsg("Process esp32s2 svd");
+			}	
 			processSVD(program, api,imageToLoad.IsEsp32S2);
 			
 

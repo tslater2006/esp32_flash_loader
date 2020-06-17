@@ -84,6 +84,12 @@ public class ESP32AppSegment {
 				return;
 			}        
 
+			IsExecute = true;
+			IsRead = true;
+			IsWrite = true;
+			SegmentName = "IRAM1";
+			return;
+
 
 		} else {
 			
