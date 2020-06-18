@@ -34,23 +34,41 @@ public class ESP32AppSegment {
 				Loading section .iram0.text, size 0x9d40 lma 0x40024404
 				Loading section .flash.text, size 0x147f7 lma 0x40080020
 			*/
-			// OK
-			if( LoadAddress >= 0x40800000 && LoadAddress <= 0x40b80000) {
+	                // OK
+			if( LoadAddress >= 0x3FFB0000 && LoadAddress <= 0x3FFB7FFF  ) {
 				IsExecute = true;
 				IsRead = true;
-				SegmentName = "IROM0";
+				IsWrite = true;
+				SegmentName = "DRAM0";
+				return;
+			}
+
+			//OK
+			if( LoadAddress >= 0x3FFB8000 && LoadAddress <= 0x3FFFFFFF  ) {
+				IsExecute = true;
+				IsRead = true;
+				IsWrite = true;
+				SegmentName = "DRAM1";
 				return;
 			}
 			
-			if( LoadAddress >= 0x40000000 && LoadAddress <= 0x40000000 + 4194304) {
+			// OK
+			if( LoadAddress >= 0x40080000 && LoadAddress <= 0x40080000 + 4194304) {
+				IsExecute = true;
+				IsRead = true;
+				SegmentName = "F_TXT";
+				return;
+			}
+			// OK
+			if( LoadAddress >= 0x40020000 && LoadAddress <= 0x40027FFF  ) {
 				IsExecute = true;
 				IsRead = true;
 				IsWrite = true;
 				SegmentName = "IRAM0";
 				return;
 			}
-			
-			if( LoadAddress >= 0x40400000 && LoadAddress <= 0x40400000 + 4194304) {
+			// OK
+			if( LoadAddress >= 0x40028000 && LoadAddress <= 0x4006FFFF) {
 				IsExecute = true;
 				IsRead = true;
 				IsWrite = true;
@@ -63,11 +81,12 @@ public class ESP32AppSegment {
 				IsExecute = false;
 				IsRead = true;
 				IsWrite = false;
-				SegmentName = "DROM0";
+				SegmentName = "F_ROA";
 				return;
 			}
 			
 			// ???
+			/*
 			if( LoadAddress >= 0x3F080000 && LoadAddress <= 0x3F080000 + 524288) {
 				IsExecute = false;
 				IsRead = true;
@@ -75,19 +94,19 @@ public class ESP32AppSegment {
 				SegmentName = "DRAM0";
 				return;
 			}
-			
+			*/
 			if( LoadAddress >= 0x3F800000 && LoadAddress <= 0x3F800000 + 4194304) {
 				IsExecute = false;
 				IsRead = true;
 				IsWrite = true;
-				SegmentName = "DRAM1";
+				SegmentName = "F_DATA";
 				return;
 			}        
 
 			IsExecute = true;
 			IsRead = true;
 			IsWrite = true;
-			SegmentName = "IRAM1";
+			SegmentName = "IRAM";
 			return;
 
 
