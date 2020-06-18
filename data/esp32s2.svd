@@ -149,7 +149,7 @@
       <baseAddress>0x3f43d000</baseAddress>
       <addressBlock>
         <offset>0</offset>
-        <size>0x00001001</size>
+        <size>0x00000FF0</size>
         <usage>registers</usage>
       </addressBlock>
       <registers>
@@ -1215,6 +1215,152 @@
         <register>
           <name>GPIO_CLOCK_GATE</name>
           <addressOffset>0x0000062c</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral>
+      <name>HMAC</name>
+      <baseAddress>0x3f43e000</baseAddress>
+      <addressBlock>
+        <offset>0</offset>
+        <size>0x00000101</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <register>
+          <name>HMAC_SET_START</name>
+          <addressOffset>0x00000040</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_PARA_PURPOSE</name>
+          <addressOffset>0x00000044</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_PARA_KEY</name>
+          <addressOffset>0x00000048</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_PARA_FINISH</name>
+          <addressOffset>0x0000004c</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_MESSAGE_ONE</name>
+          <addressOffset>0x00000050</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_MESSAGE_ING</name>
+          <addressOffset>0x00000054</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_MESSAGE_END</name>
+          <addressOffset>0x00000058</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_RESULT_FINISH</name>
+          <addressOffset>0x0000005c</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_INVALIDATE_JTAG</name>
+          <addressOffset>0x00000060</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_INVALIDATE_DS</name>
+          <addressOffset>0x00000064</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_QUERY_ERROR</name>
+          <addressOffset>0x00000068</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_QUERY_BUSY</name>
+          <addressOffset>0x0000006c</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_SET_MESSAGE_PAD</name>
+          <addressOffset>0x000000f0</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_ONE_BLOCK</name>
+          <addressOffset>0x000000f4</addressOffset>
+          <description>
+          </description>
+          <size>32</size>
+          <resetValue>0x00000000</resetValue>
+          <fields />
+        </register>
+        <register>
+          <name>HMAC_DATE</name>
+          <addressOffset>0x000000f8</addressOffset>
           <description>
           </description>
           <size>32</size>
