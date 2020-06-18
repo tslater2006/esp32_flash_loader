@@ -2849,15 +2849,6 @@
           <resetValue>0x00000000</resetValue>
           <fields />
         </register>
-        <register>
-          <name>INTERRUPT_REG_DATE</name>
-          <addressOffset>0x00000ffc</addressOffset>
-          <description>
-          </description>
-          <size>32</size>
-          <resetValue>0x00000000</resetValue>
-          <fields />
-        </register>
       </registers>
     </peripheral>
     <peripheral>
@@ -2922,16 +2913,6 @@
       <addressBlock>
         <offset>0</offset>
         <size>0x00001001</size>
-        <usage>registers</usage>
-      </addressBlock>
-      <registers />
-    </peripheral>
-    <peripheral>
-      <name>OTHER</name>
-      <baseAddress>0x3f423000</baseAddress>
-      <addressBlock>
-        <offset>0</offset>
-        <size>0x00000101</size>
         <usage>registers</usage>
       </addressBlock>
       <registers />
@@ -3141,7 +3122,7 @@
       <baseAddress>0x3f4c1000</baseAddress>
       <addressBlock>
         <offset>0</offset>
-        <size>0x00001001</size>
+        <size>0x00000FF0</size>
         <usage>registers</usage>
       </addressBlock>
       <registers>
@@ -3406,15 +3387,6 @@
           <resetValue>0x00000000</resetValue>
           <fields />
         </register>
-        <register>
-          <name>PMS_DATE</name>
-          <addressOffset>0x00000ffc</addressOffset>
-          <description>
-          </description>
-          <size>32</size>
-          <resetValue>0x00000000</resetValue>
-          <fields />
-        </register>
       </registers>
     </peripheral>
     <peripheral>
@@ -3507,7 +3479,7 @@
       <baseAddress>0x3f43c000</baseAddress>
       <addressBlock>
         <offset>0</offset>
-        <size>0x00001001</size>
+        <size>0x00000fff</size>
         <usage>registers</usage>
       </addressBlock>
       <registers>
@@ -6519,16 +6491,6 @@
           <fields />
         </register>
       </registers>
-    </peripheral>
-    <peripheral>
-      <name>XTS</name>
-      <baseAddress>0x3f43a000</baseAddress>
-      <addressBlock>
-        <offset>0</offset>
-        <size>0x00000201</size>
-        <usage>registers</usage>
-      </addressBlock>
-      <registers />
     </peripheral>
   </peripherals>
 </device>
