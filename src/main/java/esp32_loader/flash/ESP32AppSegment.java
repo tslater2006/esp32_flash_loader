@@ -56,7 +56,7 @@ public class ESP32AppSegment {
 			if( LoadAddress >= 0x40080000 && LoadAddress <= 0x40080000 + 4194304) {
 				IsExecute = true;
 				IsRead = true;
-				SegmentName = "F_TXT";
+				SegmentName = "IF_TXT";
 				return;
 			}
 			// OK
@@ -81,7 +81,7 @@ public class ESP32AppSegment {
 				IsExecute = false;
 				IsRead = true;
 				IsWrite = false;
-				SegmentName = "F_ROA";
+				SegmentName = "DF_ROA";
 				return;
 			}
 			
@@ -97,7 +97,7 @@ public class ESP32AppSegment {
 			*/
 			if( LoadAddress >= 0x3F800000 && LoadAddress <= 0x3F800000 + 4194304) {
 				IsExecute = false;
-				IsRead = true;
+				IsRead = false;
 				IsWrite = true;
 				SegmentName = "F_DATA";
 				return;
