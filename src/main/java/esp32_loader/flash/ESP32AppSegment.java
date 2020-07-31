@@ -159,6 +159,13 @@ public class ESP32AppSegment {
 				SegmentName = "DRAM1";
 				return;
 			}        
+
+			IsExecute = true;
+			IsRead = true;
+			IsWrite = true;
+			SegmentName = "IRAM";
+			return;
+
 		}
 	}
 
