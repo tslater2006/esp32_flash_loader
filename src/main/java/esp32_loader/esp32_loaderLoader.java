@@ -16,6 +16,8 @@
 package esp32_loader;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 import esp32_loader.flash.ESP32Flash;
@@ -27,8 +29,10 @@ import ghidra.app.util.Option;
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.app.util.bin.ByteArrayProvider;
 import ghidra.app.util.bin.ByteProvider;
+import ghidra.app.util.bin.format.elf.ElfLoadHelper;
 import ghidra.app.util.importer.MessageLog;
 import ghidra.app.util.opinion.AbstractLibrarySupportLoader;
+import ghidra.app.util.opinion.ElfLoader;
 import ghidra.app.util.opinion.LoadSpec;
 import ghidra.framework.Application;
 import ghidra.framework.model.DomainObject;
@@ -45,6 +49,7 @@ import ghidra.program.model.lang.CompilerSpecID;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
 import ghidra.program.model.lang.LanguageID;
 import ghidra.program.model.listing.Program;
+import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.mem.MemoryConflictException;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.util.AddressSetPropertyMap;
@@ -90,7 +95,7 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 					/* parse the flash... */
 					parsedFlash = new ESP32Flash(reader);
 					loadSpecs.add(new LoadSpec(this, 0, new LanguageCompilerSpecPair(
-							new LanguageID("Xtensa:LE:32:default"), new CompilerSpecID("default")), true));
+							new LanguageID("xtensa:LE:32:esp32"), new CompilerSpecID("default")), true));
 				} catch (Exception ex) {
 				}
 			} else {
@@ -100,7 +105,7 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 					try {
 						parsedAppImage = new ESP32AppImage(reader);
 						loadSpecs.add(new LoadSpec(this, 0, new LanguageCompilerSpecPair(
-								new LanguageID("Xtensa:LE:32:default"), new CompilerSpecID("default")), true));
+								new LanguageID("xtensa:LE:32:esp32"), new CompilerSpecID("default")), true));
 					} catch (Exception ex) {}
 				}
 			}
@@ -112,9 +117,16 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 	@Override
 	protected void load(ByteProvider provider, LoadSpec loadSpec, List<Option> options, Program program,
 			TaskMonitor monitor, MessageLog log) throws CancelledException, IOException {
-		FlatProgramAPI api = new FlatProgramAPI(program, monitor);
+		
+		try {
+			processELF(program, options, monitor, log);
+		}catch(Exception ex) {
+			String exceptionTxt =ex.toString();
+			System.out.println(exceptionTxt);
+		}
+		
 		BinaryReader reader = new BinaryReader(provider, true);
-
+		FlatProgramAPI api = new FlatProgramAPI(program);
 		ESP32AppImage imageToLoad = null;
 		if (parsedAppImage != null) {
 			imageToLoad = parsedAppImage;
@@ -142,11 +154,23 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 
 				FileBytes fileBytes = MemoryBlockUtils.createFileBytes(program, new ByteArrayProvider(curSeg.Data),
 						0x00, curSeg.Length, monitor);
-
-				var memBlock = program.getMemory().createInitializedBlock(
-						curSeg.SegmentName + "_" + Integer.toHexString(curSeg.LoadAddress),
-						api.toAddr(curSeg.LoadAddress), fileBytes, 0x00, curSeg.Length, false);
-				memBlock.setPermissions(curSeg.IsRead, curSeg.IsWrite, curSeg.IsExecute);
+				if (program.getMemory().contains(api.toAddr(curSeg.LoadAddress), api.toAddr(curSeg.LoadAddress + curSeg.Length)) == false) {
+					var memBlock = program.getMemory().createInitializedBlock(
+							curSeg.SegmentName + "_" + Integer.toHexString(curSeg.LoadAddress),
+							api.toAddr(curSeg.LoadAddress), fileBytes, 0x00, curSeg.Length, false);
+					memBlock.setPermissions(curSeg.IsRead, curSeg.IsWrite, curSeg.IsExecute);
+					memBlock.setSourceName("ESP32 Loader");
+				} else {
+					/* memory block already exists... */
+					MemoryBlock existingBlock = program.getMemory().getBlock(api.toAddr(curSeg.LoadAddress));
+					if (existingBlock != null) {
+						existingBlock.setName(curSeg.SegmentName + "_" + Integer.toHexString(curSeg.LoadAddress));
+						existingBlock.putBytes(api.toAddr(curSeg.LoadAddress), curSeg.Data);
+						existingBlock.setSourceName("ELF + ESP32 Loader");
+					} else {
+						/* whoa, there be dragons here, the block exists but doesn't contain our start address... what? */
+					}
+				}
 
 				/* Mark Instruction blocks as code */
 				if (curSeg.SegmentName.startsWith("I")) {
@@ -167,11 +191,32 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
+			String msgText = e.getMessage();
 			e.printStackTrace();
 			log.error("Parse error",e.toString());
 		}
 
 		// TODO: Load the bytes from 'provider' into the 'program'.
+		
+	}
+	
+	private void processELF(Program program, List<Option> options, TaskMonitor monitor, MessageLog log) throws Exception{
+		List<ResourceFile> elfFileList = Application.findFilesByExtensionInMyModule("elf");
+		
+		if (elfFileList.size() > 0) {
+			if (elfFileList.get(0).getName().equals("esp32_rom.elf")) {
+				/* load the ESP 32 BootROM elf */
+				byte[] elfData = Files.readAllBytes(Paths.get(elfFileList.get(0).getAbsolutePath()));
+				ByteArrayProvider bap = new ByteArrayProvider(elfData);
+				ElfLoader loader = new ElfLoader();
+
+				LoadSpec esp32LoadSpec = new LoadSpec(this, 0, new LanguageCompilerSpecPair(
+						new LanguageID("xtensa:LE:32:esp32"), new CompilerSpecID("default")), true);
+				
+					List<Option> elfOpts = loader.getDefaultOptions(bap, esp32LoadSpec, null, true);
+					loader.load(bap,esp32LoadSpec,elfOpts, program,monitor, log);
+			}
+		}
 	}
 
 	private void processSVD(Program program, FlatProgramAPI api,boolean isESP32S2) throws Exception {
