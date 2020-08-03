@@ -137,7 +137,9 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			ESP32Partition part = parsedFlash.GetPartitionByName(partOpt);
 			try {
 			imageToLoad = part.ParseAppImage();
-			} catch(Exception ex) {}
+			} catch(Exception ex) {
+				log.error("Parse error",ex.toString());
+			}
 		}
 		
 		
@@ -181,14 +183,17 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 			program.getSymbolTable().addExternalEntryPoint(api.toAddr(imageToLoad.EntryAddress));
 			
 			/* Create Peripheral Device Memory Blocks */
-					
-			processSVD(program, api);
+			if (imageToLoad.IsEsp32S2) {
+				log.appendMsg("Process esp32s2 svd");
+			}	
+			processSVD(program, api,imageToLoad.IsEsp32S2);
 			
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			String msgText = e.getMessage();
 			e.printStackTrace();
+			log.error("Parse error",e.toString());
 		}
 
 		// TODO: Load the bytes from 'provider' into the 'program'.
@@ -214,12 +219,22 @@ public class esp32_loaderLoader extends AbstractLibrarySupportLoader {
 		}
 	}
 
-	private void processSVD(Program program, FlatProgramAPI api) throws Exception {
+	private void processSVD(Program program, FlatProgramAPI api,boolean isESP32S2) throws Exception {
 		// TODO Auto-generated method stub
 		List<ResourceFile> svdFileList =  Application.findFilesByExtensionInMyModule("svd");
 		if (svdFileList.size() > 0) {
 			/* grab the first svd file ... */
 			String svdFile = svdFileList.get(0).getAbsolutePath();
+			boolean isFound = svdFile.indexOf("esp32s2") !=-1? true: false;
+			if (isESP32S2) {
+				if (!isFound) {
+					svdFile = svdFileList.get(1).getAbsolutePath();
+				} 
+			} else  {
+				if (isFound) {
+					svdFile = svdFileList.get(1).getAbsolutePath();
+				} 
+			}
 			DocumentBuilderFactory factory =
 			DocumentBuilderFactory.newInstance();
 			DocumentBuilder builder = factory.newDocumentBuilder();

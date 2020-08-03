@@ -9,6 +9,7 @@ public class ESP32AppImage {
 	public byte SegmentCount;
 	public int EntryAddress;
 	public boolean HashAppended;
+	public boolean IsEsp32S2;
 	
 	public ArrayList<ESP32AppSegment> Segments = new ArrayList<ESP32AppSegment>();
 	
@@ -24,11 +25,15 @@ public class ESP32AppImage {
         var chipID = reader.readNextShort(); //Chip ID
         var minChipRev = reader.readNextByte(); //MinChipRev
         var reserved = reader.readNextByteArray(8); // Reserved
-        this.HashAppended = (reader.readNextByte() == 0x01);
-		
+		this.HashAppended = (reader.readNextByte() == 0x01);
+		IsEsp32S2=false;
+		if (chipID==2) {
+			IsEsp32S2=true;
+			System.out.println("ESP32S2 Image found!");
+		}
 		
 		for(var x =0 ;x < this.SegmentCount; x++) {
-			var seg = new ESP32AppSegment(this, reader);
+			var seg = new ESP32AppSegment(this, reader,IsEsp32S2);
 			Segments.add(seg);
 		}
 		
